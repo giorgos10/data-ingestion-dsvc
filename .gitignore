@@ -1,0 +1,14 @@
+.tfvars
+.terraform
+*.tfstate
+.env*
+local
+*.egg-info/
+tmp_dataflow
+env/.env.*
+py3
+.DS_Store
+.idea/
+__pycache__/
+.pytest_cache/
+

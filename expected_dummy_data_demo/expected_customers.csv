@@ -1,0 +1,6 @@
+customer_id,first_name,last_name,email,signup_date,country
+001,Emma,Williams,emma.williams@example.com,2023-01-15,UK
+002,Liam,Johnson,liam.johnson@example.com,2023-02-20,UK
+003,Olivia,Brown,olivia.brown@example.com,2023-03-05,IE
+004,Noah,Jones,noah.jones@example.com,2023-04-10,UK
+005,Ava,Garcia,ava.garcia@example.com,2023-05-25,US

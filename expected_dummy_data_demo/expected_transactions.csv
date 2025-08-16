@@ -1,0 +1,9 @@
+transaction_id,customer_id,transaction_date,amount,currency,product
+1001,001,2023-06-01,120.50,GBP,Premium Subscription
+1002,002,2023-06-03,45.00,GBP,One-time Purchase
+1003,001,2023-06-10,89.99,GBP,Premium Subscription
+1004,003,2023-06-15,150.00,EUR,Annual Plan
+1005,004,2023-07-01,60.00,GBP,One-time Purchase
+1006,005,2023-07-02,75.50,USD,Monthly Plan
+1007,003,2023-07-05,200.00,EUR,Premium Subscription
+1008,002,2023-07-10,45.00,GBP,One-time Purchase

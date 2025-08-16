@@ -1,0 +1,5 @@
+project_id  = "customer-transactions-demo"
+region      = "europe-west1"
+bucket_name = "file-ingestion-demo-gzo10"
+dataset_id  = "cust_txn_insights"
+dataflow_bucket_name = "gzo10-dataflow-temp"
