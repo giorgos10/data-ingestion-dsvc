@@ -31,10 +31,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Run tests exactly like locally, but override ACT so the Makefile doesn't try to activate a venv.
-      - name: Run unit tests
-        env:
-          # If your tests need env vars, you can set them here or use a GitHub secret.
-          PYTHONPATH: .
+      # Run tests exactly like locally
+      - name: Run tests
         run: |
-          make test ACT=
+          PYTHONPATH=. pytest -vv
+
