@@ -122,8 +122,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--customers_path", required=True, help="Path to customers.csv (local or gs://)")
     parser.add_argument("--transactions_path", required=True, help="Path to transactions.csv (local or gs://)")
-    parser.add_argument("--customer_bq_table", required=True, help="PROJECT:DATASET.customers")
-    parser.add_argument("--transaction_bq_table", required=True, help="PROJECT:DATASET.transactions")
+    parser.add_argument("--customer_bq_table", required=True, help="PROJECT:LANDING_DATASET.customers")
+    parser.add_argument("--transaction_bq_table", required=True, help="PROJECT:LANDING_DATASET.transactions")
     parser.add_argument("--write_mode", default="WRITE_APPEND", choices=["WRITE_APPEND"])
     args, pipeline_args = parser.parse_known_args()
 

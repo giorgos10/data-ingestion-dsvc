@@ -40,14 +40,14 @@ resource "google_storage_bucket" "raw_data_landing_bucket" {
 
 # Landing dataset (Dataflow writes here)
 resource "google_bigquery_dataset" "file_ingestion_landing" {
-  dataset_id                 = "file_ingestion_landing"
+  dataset_id                 = var.landing_dataset_id
   location                   = var.region
   delete_contents_on_destroy = true
 }
 
 # Curated dataset (SQL transformations land here)
-resource "google_bigquery_dataset" "cust_txn_insight" {
-  dataset_id                 = var.dataset_id
+resource "google_bigquery_dataset" "cust_txn_insights" {
+  dataset_id                 = var.curated_dataset_id
   location                   = var.region
   delete_contents_on_destroy = true
 
@@ -86,7 +86,7 @@ resource "google_project_iam_member" "gcs_access" {
 # -----------------------
 
 # Customers Table (landing)
-resource "google_bigquery_table" "customers" {
+resource "google_bigquery_table" "landing_customers" {
   dataset_id = google_bigquery_dataset.file_ingestion_landing.dataset_id
   table_id   = "customers"
   deletion_protection  = false
@@ -111,7 +111,7 @@ resource "google_bigquery_table" "customers" {
 }
 
 # Transactions Table (landing)
-resource "google_bigquery_table" "transactions" {
+resource "google_bigquery_table" "landing_transactions" {
   dataset_id = google_bigquery_dataset.file_ingestion_landing.dataset_id
   table_id   = "transactions"
   deletion_protection  = false
@@ -133,6 +133,60 @@ resource "google_bigquery_table" "transactions" {
   }
 
   clustering = ["transaction_id"]
+}
+
+# Curated CUSTOMERS
+resource "google_bigquery_table" "curated_customers" {
+  dataset_id = google_bigquery_dataset.cust_txn_insights.dataset_id
+  table_id   = "customers"
+
+  schema = jsonencode([
+    { name = "customer_id",    type = "STRING",    mode = "REQUIRED" },
+    { name = "first_name",     type = "STRING",    mode = "NULLABLE" },
+    { name = "last_name",      type = "STRING",    mode = "NULLABLE" },
+    { name = "email",          type = "STRING",    mode = "NULLABLE" },
+    { name = "signup_date",    type = "DATE",      mode = "NULLABLE" },
+    { name = "country",        type = "STRING",    mode = "NULLABLE" },
+    { name = "load_tsp",       type = "TIMESTAMP", mode = "REQUIRED" },
+    { name = "file_name",      type = "STRING",    mode = "NULLABLE" },
+    { name = "rows_diff_hash", type = "STRING",    mode = "REQUIRED" }
+  ])
+
+  time_partitioning {
+    type  = "DAY"
+    field = "load_tsp"
+  }
+
+  clustering = ["customer_id"]
+
+  deletion_protection = false
+}
+
+# Curated TRANSACTIONS
+resource "google_bigquery_table" "curated_transactions" {
+  dataset_id = google_bigquery_dataset.cust_txn_insights.dataset_id
+  table_id   = "transactions"
+
+  schema = jsonencode([
+    { name = "transaction_id",  type = "STRING",    mode = "REQUIRED" },
+    { name = "customer_id",     type = "STRING",    mode = "NULLABLE" },
+    { name = "transaction_date",type = "TIMESTAMP", mode = "NULLABLE" },
+    { name = "amount",          type = "NUMERIC",   mode = "NULLABLE" },
+    { name = "currency",        type = "STRING",    mode = "NULLABLE" },
+    { name = "product",         type = "STRING",    mode = "NULLABLE" },
+    { name = "load_tsp",        type = "TIMESTAMP", mode = "REQUIRED" },
+    { name = "file_name",       type = "STRING",    mode = "NULLABLE" },
+    { name = "rows_diff_hash",  type = "STRING",    mode = "REQUIRED" }
+  ])
+
+  time_partitioning {
+    type  = "DAY"
+    field = "transaction_date"
+  }
+
+  clustering = ["customer_id"]
+
+  deletion_protection = false
 }
 
 # -----------------------

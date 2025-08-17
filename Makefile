@@ -68,9 +68,10 @@ print-vars:
 	@echo "ENV                = $(ENV)"
 	@echo "PROJECT            = $(PROJECT)"
 	@echo "REGION             = $(REGION)"
-	@echo "DATASET            = $(DATASET)"
-	@echo "CUSTOMERS_TABLE    = $(CUSTOMERS_TABLE)"
-	@echo "TRANSACTIONS_TABLE = $(TRANSACTIONS_TABLE)"
+	@echo "LANDING_DATASET    = $(LANDING_DATASET)"
+	@echo "CURATED_DATASET    = $(CURATED_DATASET)"
+	@echo "CUSTOMERS_LANDING_TABLE    = $(CUSTOMERS_LANDING_TABLE)"
+	@echo "TRANSACTIONS_LANDING_TABLE = $(TRANSACTIONS_LANDING_TABLE)"
 	@echo "CUSTOMERS_FILE(raw)= $(CUSTOMERS_FILE)"
 	@echo "TRANSACTIONS_FILE(raw)= $(TRANSACTIONS_FILE)"
 	@echo "CUSTOMERS_ARG(resolved)= $(CUSTOMERS_ARG)"
@@ -82,11 +83,11 @@ print-vars:
 
 truncate-local:
 	@which bq >/dev/null || (echo "❌ gcloud SDK (bq) not found"; exit 1)
-	@echo "Truncating $(CUSTOMERS_TABLE) and $(TRANSACTIONS_TABLE) in $(PROJECT)..."
+	@echo "Truncating $(CUSTOMERS_LANDING_TABLE) and $(TRANSACTIONS_LANDING_TABLE) in $(PROJECT)..."
 	@bq --project_id=$(PROJECT) query --nouse_legacy_sql \
-	  'TRUNCATE TABLE `$(CUSTOMERS_TABLE)`'
+	  'TRUNCATE TABLE `$(CUSTOMERS_LANDING_TABLE)`'
 	@bq --project_id=$(PROJECT) query --nouse_legacy_sql \
-	  'TRUNCATE TABLE `$(TRANSACTIONS_TABLE)`'
+	  'TRUNCATE TABLE `$(TRANSACTIONS_LANDING_TABLE)`'
 
 # Local run (DirectRunner)
 run-local:
@@ -94,8 +95,8 @@ run-local:
 	@$(ACT); PYTHONPATH=. python -m beam.pipeline \
 	  --customers_path "$(CUSTOMERS_ARG)" \
 	  --transactions_path "$(TRANSACTIONS_ARG)" \
-	  --customer_bq_table "$(CUSTOMERS_TABLE)" \
-	  --transaction_bq_table "$(TRANSACTIONS_TABLE)" \
+	  --customer_bq_table "$(CUSTOMERS_LANDING_TABLE)" \
+	  --transaction_bq_table "$(TRANSACTIONS_LANDING_TABLE)" \
 	  --write_mode WRITE_APPEND \
 	  --runner DirectRunner \
 	  --project "$(PROJECT)" \
@@ -108,8 +109,8 @@ run-dataflow:
 	@$(ACT); PYTHONPATH=. python -m beam.pipeline \
 	  --customers_path "gs://$(RAW_BUCKET)/customers.csv" \
 	  --transactions_path "gs://$(RAW_BUCKET)/transactions.csv" \
-	  --customer_bq_table "$(CUSTOMERS_TABLE)" \
-	  --transaction_bq_table "$(TRANSACTIONS_TABLE)" \
+	  --customer_bq_table "$(CUSTOMERS_LANDING_TABLE)" \
+	  --transaction_bq_table "$(TRANSACTIONS_LANDING_TABLE)" \
 	  --write_mode WRITE_APPEND \
 	  --runner DataflowRunner \
 	  --project "$(PROJECT)" \
@@ -118,6 +119,55 @@ run-dataflow:
 	  --staging_location "gs://$(DF_BUCKET)/staging" \
 	  --setup_file ./setup.py \
 	  --job_name load-cust-tx-$(ENV)-$(shell date +%Y%m%d-%H%M%S)
+
+# move the data from stg dataset/table to the curated one
+curate-customers:
+	@sed \
+	  -e "s/{{LANDING_PROJECT}}/$(PROJECT)/g" \
+	  -e "s/{{LANDING_DATASET}}/$(LANDING_DATASET)/g" \
+	  -e "s/{{CURATED_PROJECT}}/$(PROJECT)/g" \
+	  -e "s/{{CURATED_DATASET}}/$(CURATED_DATASET)/g" \
+	  sql/curate_customers.tpl.sql \
+	| bq --project_id=$(PROJECT) query --nouse_legacy_sql
+
+
+curate-transactions:
+	@sed \
+	  -e "s/{{LANDING_PROJECT}}/$(PROJECT)/g" \
+	  -e "s/{{LANDING_DATASET}}/$(LANDING_DATASET)/g" \
+	  -e "s/{{CURATED_PROJECT}}/$(PROJECT)/g" \
+	  -e "s/{{CURATED_DATASET}}/$(CURATED_DATASET)/g" \
+	  sql/curate_transactions.tpl.sql \
+	| bq --project_id=$(PROJECT) query --nouse_legacy_sql
+
+# Data analysis space for a team i.e. BI
+create-analytics:
+	@bq --project_id=$(PROJECT) mk -d --location=$(REGION) $(ANALYTICS_DATASET) || true
+
+SED_FLAGS = \
+  -e 's|{{CURATED_PROJECT}}|$(PROJECT)|g' \
+  -e 's|{{CURATED_DATASET}}|$(CURATED_DATASET)|g' \
+  -e 's|{{ANALYTICS_DATASET}}|$(ANALYTICS_DATASET)|g'
+
+view-monthly:
+	@sed $(SED_FLAGS) sql/analytics/customer_monthly_spend.tpl.sql \
+	| bq --project_id="$(PROJECT)" query --use_legacy_sql=false
+
+view-avg-monthly:
+	@sed $(SED_FLAGS) sql/analytics/avg_monthly_totals.tpl.sql \
+	| bq --project_id="$(PROJECT)" query --use_legacy_sql=false
+
+view-avg-active-months:
+	@sed $(SED_FLAGS) sql/analytics/avg_active_months_spend.tpl.sql \
+	| bq --project_id="$(PROJECT)" query --use_legacy_sql=false
+
+view-ltv:
+	@sed $(SED_FLAGS) sql/analytics/customer_ltv.tpl.sql \
+	| bq --project_id="$(PROJECT)" query --use_legacy_sql=false
+
+view-top5:
+	@sed $(SED_FLAGS) sql/analytics/top_5pct_customers.tpl.sql \
+	| bq --project_id="$(PROJECT)" query --use_legacy_sql=false
 
 clean:
 	rm -rf $(VENV) $(LOCAL_TMP)
