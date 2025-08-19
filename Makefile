@@ -76,7 +76,7 @@ venv:
 
 install: venv
 	@$(ACT); pip install -U pip
-	@$(ACT); pip install "apache-beam[gcp]" pytest python-dotenv
+	@$(ACT); pip install -r requirements.txt
 	@$(ACT); pip install -e .
 
 test:
@@ -90,10 +90,8 @@ print-vars:
 	@echo "CURATED_DATASET    = $(CURATED_DATASET)"
 	@echo "CUSTOMERS_LANDING_TABLE    = $(CUSTOMERS_LANDING_TABLE)"
 	@echo "TRANSACTIONS_LANDING_TABLE = $(TRANSACTIONS_LANDING_TABLE)"
-	@echo "CUSTOMERS_FILE(raw)= $(CUSTOMERS_FILE)"
-	@echo "TRANSACTIONS_FILE(raw)= $(TRANSACTIONS_FILE)"
-	@echo "CUSTOMERS_ARG(resolved)= $(CUSTOMERS_ARG)"
-	@echo "TRANSACTIONS_ARG(resolved)= $(TRANSACTIONS_ARG)"
+	@echo "CUSTOMERS_FILE = $(CUSTOMERS_FILE)"
+	@echo "TRANSACTIONS_FILE = $(TRANSACTIONS_FILE)"
 	@echo "RAW_BUCKET         = $(RAW_BUCKET)"
 	@echo "DF_BUCKET          = $(DF_BUCKET)"
 	@echo "VENV               = $(VENV)"
@@ -142,8 +140,8 @@ run-local:
 run-dataflow:
 	@if [ -z "$(DF_BUCKET)" ]; then echo "❌ DF_BUCKET not set in .env.$(ENV)"; exit 1; fi
 	@$(ACT); PYTHONPATH=. python -m beam.pipeline \
-	  --customers_path "gs://$(RAW_BUCKET)/customers.csv" \
-	  --transactions_path "gs://$(RAW_BUCKET)/transactions.csv" \
+	  --customers_path "gs://$(RAW_BUCKET)/$(CUSTOMERS_FILE)" \
+	  --transactions_path "gs://$(RAW_BUCKET)/$(TRANSACTIONS_FILE)" \
 	  --customer_bq_table "$(CUSTOMERS_LANDING_TABLE)" \
 	  --transaction_bq_table "$(TRANSACTIONS_LANDING_TABLE)" \
 	  --write_mode WRITE_APPEND \

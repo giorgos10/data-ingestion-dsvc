@@ -203,7 +203,11 @@ make curate-customers        # curate customers
 make curate-transactions     # curate transactions
 make create-analytics        # create analytics dataset
 make delete-analytics        # delete analytics dataset
-make view-monthly            # BI views
+make view-monthly            # BI views - create/replace customer_monthly_spend view
+make view-avg-monthly        # BI views - create/replace avg_monthly_totals view
+make view-avg-active-months  # BI views - create/replace avg_active_months_spend view
+make view-ltv                # BI views - create/replace customer_ltv view
+make view-top5               # BI views - create/replace top_5pct_customers view
 make truncate-local          # truncate landing tables
 make clean                   # remove venv/tmp
 ```
