@@ -51,7 +51,7 @@ def test_pipeline_with_files():
     repo_root = Path(__file__).resolve().parents[2]
 
     # Input files live here:
-    input_dir = repo_root / "local"
+    input_dir = repo_root / "local_bucket"
     customers_path = input_dir / "customers.csv"
     transactions_path = input_dir / "transactions.csv"
 

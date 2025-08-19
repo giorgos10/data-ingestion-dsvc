@@ -14,10 +14,16 @@ variable "bucket_name" {
   type        = string
 }
 
-variable "dataset_id" {
+variable "curated_dataset_id" {
   description = "BigQuery dataset ID for the demo curated layer"
   type        = string
   default     = "cust_txn_insights"
+}
+
+variable "landing_dataset_id" {
+  description = "BigQuery dataset ID for the demo landing layer"
+  type        = string
+  default     = "file_ingestion_landing"
 }
 
 variable "dataflow_bucket_name" {
