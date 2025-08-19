@@ -1,3 +1,4 @@
 apache-beam[gcp]
 pytest
 python-dotenv
+build

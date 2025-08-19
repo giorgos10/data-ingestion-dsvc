@@ -1,6 +1,7 @@
 .tfvars
 .terraform
 *.tfstate
+*.tfstate.backup
 *.egg-info/
 tmp_dataflow
 py3
