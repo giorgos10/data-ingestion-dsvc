@@ -163,6 +163,7 @@ make terraform-destroy
 ---
 
 ## Assumptions
+- Developer runs this pipeline on a MAC laptop.
 - **Single Terraform vars file** (`gcp.tfvars`) is sufficient for this POC; env split will be future work.  
 - **.env.dev** and **.env.prod** contain all Beam/Dataflow required runtime configs.  
 - Landing tables are append-only; deduplication happens in curated tables.  
