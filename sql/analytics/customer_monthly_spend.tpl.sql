@@ -1,3 +1,4 @@
+-- View for total and avg monthly spend per customer and the amount of transactions made in the month
 CREATE OR REPLACE VIEW `{{CURATED_PROJECT}}.{{ANALYTICS_DATASET}}.customer_monthly_spend` AS
 WITH txn AS (
   SELECT
