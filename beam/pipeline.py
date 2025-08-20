@@ -4,11 +4,12 @@ import csv
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions, StandardOptions
 
+from beam.schemas import CustomerSchema, TransactionSchema
 from beam.transformations import CleanCustomerData, CleanTransactionData, AddMetadata
 
 
-CUSTOMER_FIELDS = ["customer_id", "first_name", "last_name", "email", "signup_date", "country"]
-TRANSACTION_FIELDS = ["transaction_id", "customer_id", "transaction_date", "amount", "currency", "product"]
+CUSTOMER_FIELDS = CustomerSchema._fields[:-2]  # drop metadata fields
+TRANSACTION_FIELDS = TransactionSchema._fields[:-2]
 
 
 def _parse_csv_line(line: str):
@@ -21,7 +22,7 @@ def _to_dict(fields):
     return _mapper
 
 
-# function to change the write to bigquery method while running locally as only streaming insert is allowed woth direct runner
+# function to change the write to bigquery method while running locally as only streaming insert is allowed with direct runner
 def _runner_method(options: PipelineOptions):
     runner = (options.view_as(StandardOptions).runner or "").lower()
     if runner == "directrunner":
@@ -29,10 +30,62 @@ def _runner_method(options: PipelineOptions):
     return beam.io.WriteToBigQuery.Method.FILE_LOADS
 
 
+# required as streaming insert needs separately passed the bq information
 def _split_table_str(table_str: str):
     project, dataset_table = table_str.split(":", 1)
     dataset, table = dataset_table.split(".", 1)
     return project, dataset, table
+
+
+# generic ingest function to avoid duplicated/redundant code
+def _ingest_csv(p, path, fields, label, cleaner):
+    """
+    Build an ingest branch only if 'path' is provided.
+    validate=False ensures globs with zero matches yield an empty PCollection instead of failing.
+    """
+    if not path:
+        return None  # no branch
+
+    return (
+        p
+        | f"Read{label}CSV" >> beam.io.ReadFromText(path, skip_header_lines=1, validate=False)
+        | f"Parse{label}CSV" >> beam.Map(_parse_csv_line)
+        | f"{label}ToDict" >> beam.Map(_to_dict(fields))
+        | f"Clean{label}" >> cleaner
+        | f"Add{label}Metadata" >> beam.ParDo(AddMetadata(path))
+    )
+
+
+def _write_to_bq(pcoll, table_str, method, write_mode, label):
+    """Write only if the pcoll exists; otherwise do nothing."""
+    if pcoll is None:
+        return
+
+    if method == beam.io.WriteToBigQuery.Method.STREAMING_INSERTS:
+        # Local run (DirectRunner): split into parts
+        proj, ds, tbl = _split_table_str(table_str)
+        _ = (
+            pcoll
+            | f"Write{label}Streaming" >> beam.io.WriteToBigQuery(
+                table=tbl,
+                dataset=ds,
+                project=proj,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
+                write_disposition=getattr(beam.io.BigQueryDisposition, write_mode),
+                method=method,
+            )
+        )
+    else:
+        # Dataflow run (GCS → BigQuery load jobs)
+        _ = (
+            pcoll
+            | f"Write{label}Loads" >> beam.io.WriteToBigQuery(
+                table=table_str,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
+                write_disposition=getattr(beam.io.BigQueryDisposition, write_mode),
+                method=method,
+            )
+        )
 
 
 def run_pipeline(
@@ -47,81 +100,30 @@ def run_pipeline(
     method = _runner_method(options)
 
     with beam.Pipeline(options=options) as p:
-
-        customers = (
-            p
-            | "ReadCustomersCSV" >> beam.io.ReadFromText(customers_path, skip_header_lines=1)
-            | "ParseCustomersCSV" >> beam.Map(_parse_csv_line)
-            | "CustomersToDict" >> beam.Map(_to_dict(CUSTOMER_FIELDS))
-            | "CleanCustomers" >> CleanCustomerData()
-            | "AddCustomerMetadata" >> beam.ParDo(AddMetadata(customers_path))
+        customers = _ingest_csv(
+            p=p,
+            path=customers_path,
+            fields=CUSTOMER_FIELDS,
+            label="Customers",
+            cleaner=CleanCustomerData(),
         )
 
-        transactions = (
-            p
-            | "ReadTransactionsCSV" >> beam.io.ReadFromText(transactions_path, skip_header_lines=1)
-            | "ParseTransactionsCSV" >> beam.Map(_parse_csv_line)
-            | "TransactionsToDict" >> beam.Map(_to_dict(TRANSACTION_FIELDS))
-            | "CleanTransactions" >> CleanTransactionData()
-            | "AddTransactionMetadata" >> beam.ParDo(AddMetadata(transactions_path))
+        transactions = _ingest_csv(
+            p=p,
+            path=transactions_path,
+            fields=TRANSACTION_FIELDS,
+            label="Transactions",
+            cleaner=CleanTransactionData(),
         )
 
-        if method == beam.io.WriteToBigQuery.Method.STREAMING_INSERTS:
-            # Local run (DirectRunner)
-            proj_c, ds_c, tbl_c = _split_table_str(customer_bq_table)
-            proj_t, ds_t, tbl_t = _split_table_str(transaction_bq_table)
-
-            _ = (
-                customers
-                | "WriteCustomersStreaming" >> beam.io.WriteToBigQuery(
-                    table=tbl_c,
-                    dataset=ds_c,
-                    project=proj_c,
-                    create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
-                    write_disposition=getattr(beam.io.BigQueryDisposition, write_mode),
-                    method=method,
-                )
-            )
-
-            _ = (
-                transactions
-                | "WriteTransactionsStreaming" >> beam.io.WriteToBigQuery(
-                    table=tbl_t,
-                    dataset=ds_t,
-                    project=proj_t,
-                    create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
-                    write_disposition=getattr(beam.io.BigQueryDisposition, write_mode),
-                    method=method,
-                )
-            )
-
-        else:
-            # Dataflow run (GCS → BigQuery load jobs)
-            _ = (
-                customers
-                | "WriteCustomersLoads" >> beam.io.WriteToBigQuery(
-                    table=customer_bq_table,
-                    create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
-                    write_disposition=getattr(beam.io.BigQueryDisposition, write_mode),
-                    method=method,
-                )
-            )
-
-            _ = (
-                transactions
-                | "WriteTransactionsLoads" >> beam.io.WriteToBigQuery(
-                    table=transaction_bq_table,
-                    create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
-                    write_disposition=getattr(beam.io.BigQueryDisposition, write_mode),
-                    method=method,
-                )
-            )
+        _write_to_bq(customers, customer_bq_table, method, write_mode, "Customers")
+        _write_to_bq(transactions, transaction_bq_table, method, write_mode, "Transactions")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--customers_path", required=True, help="Path to customers.csv (local or gs://)")
-    parser.add_argument("--transactions_path", required=True, help="Path to transactions.csv (local or gs://)")
+    parser.add_argument("--customers_path", required=False, help="Path to customers.csv (local or gs://)")
+    parser.add_argument("--transactions_path", required=False, help="Path to transactions.csv (local or gs://)")
     parser.add_argument("--customer_bq_table", required=True, help="PROJECT:LANDING_DATASET.customers")
     parser.add_argument("--transaction_bq_table", required=True, help="PROJECT:LANDING_DATASET.transactions")
     parser.add_argument("--write_mode", default="WRITE_APPEND", choices=["WRITE_APPEND"])
