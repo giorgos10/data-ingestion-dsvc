@@ -1,3 +1,4 @@
+-- Ranked list of the top-spending customers (top 5% by total lifetime spend)
 CREATE OR REPLACE VIEW `{{CURATED_PROJECT}}.{{ANALYTICS_DATASET}}.top_5pct_customers` AS
 SELECT
   customer_id,

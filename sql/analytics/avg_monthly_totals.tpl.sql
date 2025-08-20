@@ -1,3 +1,4 @@
+-- View of each customer’s average monthly spend, averaged only across the months where they made a transaction
 CREATE OR REPLACE VIEW `{{CURATED_PROJECT}}.{{ANALYTICS_DATASET}}.customer_avg_monthly_spend` AS
 WITH monthly AS (
   SELECT

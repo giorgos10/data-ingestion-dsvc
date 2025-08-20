@@ -130,13 +130,12 @@ make curate-transactions
 
 ### 8. Analytics Views
 
-Create dataset and materialize BI views:  
+Create dataset and BI views:  
 
 ```bash
 make create-analytics
 make view-monthly
 make view-avg-monthly
-make view-avg-active-months
 make view-ltv
 make view-top5
 ```
@@ -178,12 +177,14 @@ make terraform-destroy
 ## Future Improvements
 - **Proper environments:** Separate `dev`, `test`, `prod` configs for Terraform.  
 - **CI/CD:** More complicated unit tests can be added and restrictions can be put in place, such as a merge block till the github action has succeeded. 
+- **CI/CD:** Implement remote state backends for Terraform, integrate terraform plan and apply into GitHub Actions pipelines with policy-as-code enforcement (tailored to each environment). 
 - **Productionise** the pipeline (i.e.1 auto-trigger on file arrival; GCS → Pub/Sub → Dataflow → Call BigQuery API to kick off SQL scripts, i.e.2 Use Airflow/Composer to ingest the files and trigger all required DAGs - a sensor operator would be required in the GCS bucket). 
 - **Monitoring:** Dataflow job metrics in Cloud Monitoring + alerting.  
 - **Secrets management:** Secret Manager or Vault can be used for any sensitive infrastructure related value.  
 - **Testing:** Add more complicated e2e validation comparing CSV input vs BigQuery output. Add load testing capability.
 - **File clean up:** Files could be archived in another bucket once ingested for safe keeping and regulatory reasons.
 - **Cost optimisation:** Files could be compressed after ingestion, lifecycle rules could be enforced, cap the workers number when running dataflow jobs, choose worker machine type.
+- **Data Protection/Governance:** Incorporate controls for handling PII by enforcing data classification labels at the IaC level, ensuring that resources storing PII are encrypted and accessible only by the required stakeholders.
 
 ---
 
@@ -205,7 +206,6 @@ make create-analytics        # create analytics dataset
 make delete-analytics        # delete analytics dataset
 make view-monthly            # BI views - create/replace customer_monthly_spend view
 make view-avg-monthly        # BI views - create/replace avg_monthly_totals view
-make view-avg-active-months  # BI views - create/replace avg_active_months_spend view
 make view-ltv                # BI views - create/replace customer_ltv view
 make view-top5               # BI views - create/replace top_5pct_customers view
 make truncate-local          # truncate landing tables

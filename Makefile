@@ -60,7 +60,6 @@ help:
 	@echo "make delete-analytics                # delete analytics dataset and its contents"
 	@echo "make view-monthly                    # create/replace customer_monthly_spend view"
 	@echo "make view-avg-monthly                # create/replace avg_monthly_totals view"
-	@echo "make view-avg-active-months          # create/replace avg_active_months_spend view"
 	@echo "make view-ltv                        # create/replace customer_ltv view"
 	@echo "make view-top5                       # create/replace top_5pct_customers view"
 	@echo "make terraform-init                  # terraform init in ./terraform"
@@ -191,10 +190,6 @@ view-monthly:
 
 view-avg-monthly:
 	@sed $(SED_FLAGS) sql/analytics/avg_monthly_totals.tpl.sql \
-	| bq --project_id="$(PROJECT)" query --use_legacy_sql=false
-
-view-avg-active-months:
-	@sed $(SED_FLAGS) sql/analytics/avg_active_months_spend.tpl.sql \
 	| bq --project_id="$(PROJECT)" query --use_legacy_sql=false
 
 view-ltv:

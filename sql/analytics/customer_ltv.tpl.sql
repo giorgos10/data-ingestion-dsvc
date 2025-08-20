@@ -1,3 +1,4 @@
+-- Customers lifetime value (LTV) leaderboard - flags the top ~5%
 CREATE OR REPLACE VIEW `{{CURATED_PROJECT}}.{{ANALYTICS_DATASET}}.customer_ltv` AS
 WITH ltv AS (
   SELECT
