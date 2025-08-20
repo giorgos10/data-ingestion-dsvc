@@ -22,7 +22,7 @@ def _to_dict(fields):
     return _mapper
 
 
-# function to change the write to bigquery method while running locally as only streaming insert is allowed with direct runner
+# function to change the write to bigquery method while running locally as only streaming insert is allowed with direct runner without using a gcs bucket (assuming we want the whole infra running locally apart from the endpoint tables)
 def _runner_method(options: PipelineOptions):
     runner = (options.view_as(StandardOptions).runner or "").lower()
     if runner == "directrunner":

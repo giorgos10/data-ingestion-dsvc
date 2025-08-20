@@ -44,7 +44,7 @@ LOCAL_TMP := $(abspath ./tmp_dataflow)
         truncate-local run-local run-dataflow \
         curate-customers curate-transactions \
         create-analytics delete-analytics \
-        view-monthly view-avg-monthly view-avg-active-months view-ltv view-top5 \
+        view-monthly view-avg-monthly view-ltv view-top5 \
         clean
 
 help:
